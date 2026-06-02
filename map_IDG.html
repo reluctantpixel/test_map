@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visiting Researchers to Malta</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        /* Make map full screen and remove default borders */
+        html, body, #map { 
+            margin: 0; 
+            padding: 0; 
+            width: 100%; 
+            height: 100vh; 
+            font-family: Arial, sans-serif;
+        }
+        /* Style the inside of the popups beautifully */
+        .popup-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+            border-bottom: 2px solid #e06666; /* Styled red line for a Malta theme */
+            padding-bottom: 3px;
+        }
+        .researcher-list {
+            margin: 5px 0 0 0;
+            padding-left: 20px;
+            font-size: 13px;
+            color: #555;
+        }
+        .researcher-list li {
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // 1. Initialize the map, centered around the Mediterranean/Malta area at zoom level 3
+        const map = L.map('map').setView([35.9375, 14.3754], 3);
+
+        // 2. Load a clean, minimalist map style (CartoDB Positron) so your data pops out
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap contributors © CARTO'
+        }).addTo(map);
+
+        // 3. YOUR DATA: Add countries, coordinates, and lists of researchers here
+        const data = [
+            {
+                country: "United Kingdom",
+                lat: 55.3781,
+                lng: -3.4360,
+                researchers: ["Dr. Evelyn Brooks (History)", "Prof. Liam Smith (Marine Biology)"]
+            },
+            {
+                country: "Italy",
+                lat: 41.8719,
+                lng: 12.5674,
+                researchers: ["Dr. Giovanni Rossi (Archaeology)", "Elena Bianchi (Seismology)", "Prof. Marco Verdi (Engineering)"]
+            },
+            {
+                country: "United States",
+                lat: 37.0902,
+                lng: -95.7129,
+                researchers: ["Prof. Sarah Jenkins (Digital Humanities)"]
+            },
+            {
+                country: "Germany",
+                lat: 51.1657,
+                lng: 10.4515,
+                researchers: ["Dr. Hans Müller (Quantum Computing)", "Dr. Clara Schmidt (Sociology)"]
+            }
+        ];
+
+        // 4. Loop through the data and plot the dots on the map
+        data.forEach(item => {
+            // Build the HTML content for the popup dynamically
+            let popupContent = `<div class="popup-title">${item.country}</div>`;
+            popupContent += `<ul class="researcher-list">`;
+            
+            item.researchers.forEach(researcher => {
+                popupContent += `<li>${researcher}</li>`;
+            });
+            
+            popupContent += `</ul>`;
+
+            // Create a sleek circle marker for each country
+            L.circleMarker([item.lat, item.lng], {
+                radius: 8,          // Size of the dot
+                fillColor: "#e06666", // Red dot fill
+                color: "#c0392b",     // Darker red border
+                weight: 1,
+                opacity: 1,
+                fillOpacity: 0.8
+            })
+            .addTo(map)
+            .bindPopup(popupContent); // Attach the custom HTML researcher list to the click event
+        });
+    </script>
+</body>
+</html>

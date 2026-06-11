@@ -6,11 +6,20 @@
     <title>Visiting Researchers to Malta: Global Connections</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        html, body, #map { 
+        html, body { 
             margin: 0; padding: 0; 
-            width: 100%; height: 100vh; 
+            width: 100%; height: 100%; /* UPDATED: 100% is much more stable for iframes than 100vh */
             font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
+            background-color: #f4f4f4; /* This is the color of the empty space on the sides */
+            overflow: hidden; /* CRITICAL: Prevents ugly scrollbars from appearing inside the iframe */
+        }
+        
+        #map {
+            width: 100vw; /* Forces the map to strictly fill the screen width */
+            height: 140vh; /* Stretches the map vertically so it fills the width without warping */
+            position: absolute;
+            top: -20vh; /* Shifts the map up slightly to hide the Arctic and perfectly center the rest */
+            left: 0;
         }
         .popup-title {
             font-size: 16px; font-weight: bold; margin-bottom: 5px; color: #333;
@@ -23,18 +32,20 @@
         /* NEW STYLES: Custom DivIcon for the Malta hub to hold PNG */
         .malta-icon-container {
             border-radius: 50%;
-            background-color: #BA0C2F; /* UM Red dot background */
-            border: 2px solid #fff;   /* White border to make it pop */
+            background-color: #fff; 
+            border: 2px solid #BA0C2F; 
             box-shadow: 0 0 5px rgba(0,0,0,0.4);
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: hidden; /* Keeps image within the circle */
+            overflow: hidden; 
         }
+        
         .malta-icon-container img {
-            width: 70%; /* Size of image inside the dot */
-            height: 70%;
-            object-fit: contain;
+            width: 100%; 
+            height: 100%;
+            object-fit: cover; 
+            transform: scale(1.3); /* Adjust this number if you need more/less zoom */
         }
     </style>
 </head>
@@ -54,6 +65,8 @@
 
         const imageUrl = 'World_map.svg'; 
         const imageBounds = [[0, 0], [1000, 1000]]; 
+
+        
 
         L.imageOverlay(imageUrl, imageBounds).addTo(map);
         map.fitBounds(imageBounds);
@@ -101,7 +114,7 @@
             },
             {
                 country: "Italy",
-                y: 690, x: 520, 
+                y: 607, x: 508, 
                 researchers: ["Dr. Giovanni Rossi (Archaeology)", "Elena Bianchi (Seismology)"]
             },
             {
@@ -130,7 +143,7 @@
                 pane: 'linesPane', // Explicit pane assignment
                 color: '#BA0C2F',  // UPDATED: UM Red lines
                 weight: 1.5,
-                opacity: 0.3,      // Softer default opacity
+                opacity: 0.8,      // Softer default opacity
                 fill: false,
                 interactive: false  
             });
@@ -178,7 +191,7 @@
         const maltaHubIcon = L.divIcon({
             html: '<div class="malta-icon-container">' +
                   '' +
-                  '<img src="um_square.jpg" alt="Hub">' +
+                  '<img src="um_square.jpg">' +
                   '</div>',
             iconSize: [20, 20], // Base size should be approx inactive size [16, 16] or slightly larger [20,20]
             className: '' // Clears Leaflet's default DivIcon styling

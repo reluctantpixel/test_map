@@ -60,7 +60,8 @@
         // 1. Map Initialization
         const map = L.map('map', {
             crs: L.CRS.Simple,
-            zoomSnap: 0, 
+            zoomSnap: 0,
+            minZoom: -5, // <--- RIGHT HERE!
             zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false
         });
 

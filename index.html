@@ -60,16 +60,24 @@
         // 1. Map Initialization
         const map = L.map('map', {
             crs: L.CRS.Simple,
+            zoomSnap: 0, // CRITICAL FIX: Allows the map to scale smoothly inside any iframe
             zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false
         });
 
         const imageUrl = 'World_map.svg'; 
+        
+        // The actual dimensions of your image
         const imageBounds = [[0, 0], [1000, 1000]]; 
 
-        
+        // NEW CAMERA BOUNDS: 
+        // We ensure X goes from 0 to 1000 (protecting the left and right edges)
+        // We trim Y to start at 150 (hiding Antarctica) and end at 850 (hiding the deep Arctic)
+        const iframeBounds = [[150, 0], [850, 1000]]; 
 
         L.imageOverlay(imageUrl, imageBounds).addTo(map);
-        map.fitBounds(imageBounds);
+        
+        // Force Leaflet to always fit this exact box inside the iframe
+        map.fitBounds(iframeBounds);
 
         // ==========================================
         // NEW: Map Layering setup (Putting lines behind dots)

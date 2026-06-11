@@ -69,7 +69,7 @@
 
         // NEW: Added "breathing room" to the X coordinates (-50 and 1050) 
         // This physically forces empty space on the left and right sides so Australia cannot be clipped.
-        const iframeBounds = [[150, -50], [850, 1050]]; 
+        const iframeBounds = [[150, -150], [850, 1050]]; 
 
         L.imageOverlay(imageUrl, imageBounds).addTo(map);
 

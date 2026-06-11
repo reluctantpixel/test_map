@@ -60,18 +60,25 @@
         // 1. Map Initialization
         const map = L.map('map', {
             crs: L.CRS.Simple,
-            zoomSnap: 0, 
+            zoomSnap: 0, // Keeps the zoom perfectly smooth for your iframe
             zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false
         });
 
         const imageUrl = 'World_map.svg'; 
         const imageBounds = [[0, 0], [1000, 1000]]; 
 
-        // NEW: Added "breathing room" to the X coordinates (-50 and 1050) 
-        // This physically forces empty space on the left and right sides so Australia cannot be clipped.
-        const iframeBounds = [[150, -150], [850, 1050]]; 
-
         L.imageOverlay(imageUrl, imageBounds).addTo(map);
+
+        // Safely fit the full map into the iframe
+        function frameMap() {
+            map.invalidateSize(); // Wakes Leaflet up to check the real iframe size
+            map.fitBounds(imageBounds); // Back to the original 1000x1000 full map
+        }
+
+        // Run it immediately, run it again a split-second later just in case, and listen for resizes
+        frameMap();
+        setTimeout(frameMap, 150);
+        window.addEventListener('resize', frameMap);
 
         // NEW: A dedicated function to handle iframe sizing
         function frameMap() {

@@ -14,6 +14,13 @@
             overflow: hidden; 
         }
         
+        #map {
+            width: 100%; 
+            height: 100%; 
+            position: absolute;
+            top: 0; 
+            left: 0;
+        }
         .popup-title {
             font-size: 16px; font-weight: bold; margin-bottom: 5px; color: #333;
             border-bottom: 2px solid #BA0C2F; /* UPDATED: UM Red line */
@@ -53,7 +60,8 @@
         // 1. Map Initialization
         const map = L.map('map', {
             crs: L.CRS.Simple,
-            zoomSnap: 0, // Keeps the zoom perfectly smooth for your iframe
+            minZoom: -5, // CRITICAL FIX: Unlocks negative zooming so the map can shrink to fit small iframes
+            zoomSnap: 0, 
             zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false
         });
 
@@ -64,20 +72,13 @@
 
         // Safely fit the full map into the iframe
         function frameMap() {
-            map.invalidateSize(); // Wakes Leaflet up to check the real iframe size
-            map.fitBounds(imageBounds); // Back to the original 1000x1000 full map
+            map.invalidateSize(); 
+            map.fitBounds(imageBounds); // Back to the original full map
         }
 
-        // Run it immediately, run it again a split-second later just in case, and listen for resizes
         frameMap();
         setTimeout(frameMap, 150);
         window.addEventListener('resize', frameMap);
-
-        // NEW: A dedicated function to handle iframe sizing
-        function frameMap() {
-            map.invalidateSize(); // Forces Leaflet to recalculate the iframe's exact dimensions
-            map.fitBounds(iframeBounds, { padding: [0, 0] }); // Forces the zoom with zero extra Leaflet padding
-        }
 
         // 1. Run it immediately
         frameMap();

@@ -3,34 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visiting Researchers to Malta</title>
+    <title>Visiting Researchers to Malta: Global Connections</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        /* Make map full screen and remove default borders */
         html, body, #map { 
-            margin: 0; 
-            padding: 0; 
-            width: 100%; 
-            height: 100vh; 
+            margin: 0; padding: 0; 
+            width: 100%; height: 100vh; 
             font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
         }
-        /* Style the inside of the popups beautifully */
         .popup-title {
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 5px;
-            color: #333;
-            border-bottom: 2px solid #e06666; /* Styled red line for a Malta theme */
+            font-size: 16px; font-weight: bold; margin-bottom: 5px; color: #333;
+            border-bottom: 2px solid #BA0C2F; /* UPDATED: UM Red line */
             padding-bottom: 3px;
         }
-        .researcher-list {
-            margin: 5px 0 0 0;
-            padding-left: 20px;
-            font-size: 13px;
-            color: #555;
+        .researcher-list { margin: 5px 0 0 0; padding-left: 20px; font-size: 13px; color: #555; list-style-type: disc;}
+        .researcher-list li { margin-bottom: 4px; }
+
+        /* NEW STYLES: Custom DivIcon for the Malta hub to hold PNG */
+        .malta-icon-container {
+            border-radius: 50%;
+            background-color: #BA0C2F; /* UM Red dot background */
+            border: 2px solid #fff;   /* White border to make it pop */
+            box-shadow: 0 0 5px rgba(0,0,0,0.4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden; /* Keeps image within the circle */
         }
-        .researcher-list li {
-            margin-bottom: 4px;
+        .malta-icon-container img {
+            width: 70%; /* Size of image inside the dot */
+            height: 70%;
+            object-fit: contain;
         }
     </style>
 </head>
@@ -39,67 +43,171 @@
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@elfalem/leaflet-curve@0.9.2/dist/leaflet.curve.min.js"></script>
+    
     <script>
-        // 1. Initialize the map, centered around the Mediterranean/Malta area at zoom level 3
-        const map = L.map('map').setView([35.9375, 14.3754], 3);
+        // 1. Map Initialization
+        const map = L.map('map', {
+            crs: L.CRS.Simple,
+            zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false
+        });
 
-        // 2. Load a clean, minimalist map style (CartoDB Positron) so your data pops out
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            attribution: '© OpenStreetMap contributors © CARTO'
-        }).addTo(map);
+        const imageUrl = 'https://upload.wikimedia.org/wikipedia/commons/8/80/World_map_-_low_resolution.svg'; 
+        const imageBounds = [[0, 0], [1000, 1000]]; 
 
-        // 3. YOUR DATA: Add countries, coordinates, and lists of researchers here
+        L.imageOverlay(imageUrl, imageBounds).addTo(map);
+        map.fitBounds(imageBounds);
+
+        // ==========================================
+        // NEW: Map Layering setup (Putting lines behind dots)
+        // ==========================================
+        // Create custom "panes" to control z-index explicitely
+        map.createPane('linesPane');
+        map.getPane('linesPane').style.zIndex = 400; // Lower z-index
+        
+        map.createPane('markersPane');
+        map.getPane('markersPane').style.zIndex = 450; // Higher z-index
+
+        // 2. Global Variables
+        const maltaCoords = [581, 516]; 
+        let allCountryMarkers = []; 
+
+        // UPDATED: Brand Styles using UM Red #BA0C2F
+        const inactiveStyle = { 
+            pane: 'markersPane', // Explicit pane assignment
+            radius: 8, 
+            fillColor: "#BA0C2F", // UPDATED: UM Red fill
+            color: "#fff",       // UPDATED: Clean white border
+            weight: 1, 
+            opacity: 1, 
+            fillOpacity: 0.8 
+        };
+        const activeStyle = { 
+            pane: 'markersPane', // Explicit pane assignment
+            radius: 10, 
+            fillColor: "#fff",    // Highlighting by swapping color
+            color: "#BA0C2F",    // UM Red border
+            weight: 2, 
+            opacity: 1, 
+            fillOpacity: 1 
+        };
+
+        // 3. YOUR DATA
         const data = [
             {
                 country: "United Kingdom",
-                lat: 55.3781,
-                lng: -3.4360,
+                y: 780, x: 460, 
                 researchers: ["Dr. Evelyn Brooks (History)", "Prof. Liam Smith (Marine Biology)"]
             },
             {
                 country: "Italy",
-                lat: 41.8719,
-                lng: 12.5674,
-                researchers: ["Dr. Giovanni Rossi (Archaeology)", "Elena Bianchi (Seismology)", "Prof. Marco Verdi (Engineering)"]
+                y: 690, x: 520, 
+                researchers: ["Dr. Giovanni Rossi (Archaeology)", "Elena Bianchi (Seismology)"]
             },
             {
                 country: "United States",
-                lat: 37.0902,
-                lng: -95.7129,
+                y: 710, x: 200, 
                 researchers: ["Prof. Sarah Jenkins (Digital Humanities)"]
-            },
-            {
-                country: "Germany",
-                lat: 51.1657,
-                lng: 10.4515,
-                researchers: ["Dr. Hans Müller (Quantum Computing)", "Dr. Clara Schmidt (Sociology)"]
             }
         ];
 
-        // 4. Loop through the data and plot the dots on the map
+        // 4. Function: Draw the Curve
+        function drawConnectionArc(origin, destination) {
+            const start = origin; 
+            const end = destination; 
+
+            const deltaY = end[0] - start[0];
+            const deltaX = end[1] - start[1];
+            
+            const cpY = start[0] + (deltaY / 2) + (Math.abs(deltaX) * 0.35); 
+            const cpX = start[1] + (deltaX / 2) + (Math.abs(deltaY) * 0.1);
+            
+            const controlPoint = [cpY, cpX]; 
+
+            const pathCommand = ['M', start, 'Q', controlPoint, end];
+
+            return L.curve(pathCommand, {
+                pane: 'linesPane', // Explicit pane assignment
+                color: '#BA0C2F',  // UPDATED: UM Red lines
+                weight: 1.5,
+                opacity: 0.3,      // Softer default opacity
+                fill: false,
+                interactive: false  
+            });
+        }
+
+        // 5. Build Markers, Draw Curves, and Add Interactivity
         data.forEach(item => {
-            // Build the HTML content for the popup dynamically
             let popupContent = `<div class="popup-title">${item.country}</div>`;
             popupContent += `<ul class="researcher-list">`;
-            
-            item.researchers.forEach(researcher => {
-                popupContent += `<li>${researcher}</li>`;
-            });
-            
+            item.researchers.forEach(researcher => { popupContent += `<li>${researcher}</li>`; });
             popupContent += `</ul>`;
 
-            // Create a sleek circle marker for each country
-            L.circleMarker([item.lat, item.lng], {
-                radius: 8,          // Size of the dot
-                fillColor: "#e06666", // Red dot fill
-                color: "#c0392b",     // Darker red border
-                weight: 1,
-                opacity: 1,
-                fillOpacity: 0.8
-            })
+            const originCoords = [item.y, item.x];
+
+            const countryCurve = drawConnectionArc(originCoords, maltaCoords).addTo(map);
+
+            // UPDATED: Dot Markers now receive explicit `pane: 'markersPane'` via style objects
+            const marker = L.circleMarker(originCoords, inactiveStyle)
             .addTo(map)
-            .bindPopup(popupContent); // Attach the custom HTML researcher list to the click event
+            .bindPopup(popupContent, { offset: [0, -10], closeButton: false }); 
+
+            marker.associatedCurve = countryCurve;
+            allCountryMarkers.push(marker);
+
+            marker.on('click', function(e) {
+                L.DomEvent.stopPropagation(e); 
+
+                allCountryMarkers.forEach(m => {
+                    if (m === this) {
+                        m.setStyle(activeStyle);
+                        if (!map.hasLayer(m.associatedCurve)) m.associatedCurve.addTo(map);
+                        m.associatedCurve.setStyle({ opacity: 0.9, weight: 2.5 }); 
+                    } else {
+                        m.setStyle(inactiveStyle);
+                        if (map.hasLayer(m.associatedCurve)) map.removeLayer(m.associatedCurve); 
+                    }
+                });
+            });
         });
+
+        // ==========================================
+        // NEW: Special Icon Marker for Malta Hub
+        // ==========================================
+        // Define a custom HTML 'DivIcon' rather than a basic vector dot
+        const maltaHubIcon = L.divIcon({
+            html: '<div class="malta-icon-container">' +
+                  '' +
+                  '<img src="https://img.icons8.com/external-flatart-icons-outline-flatarticons/64/FFFFFF/external-hub-logistics-flatart-icons-outline-flatarticons.png" alt="Hub">' +
+                  '</div>',
+            iconSize: [20, 20], // Base size should be approx inactive size [16, 16] or slightly larger [20,20]
+            className: '' // Clears Leaflet's default DivIcon styling
+        });
+
+        // Add Malta Hub Marker (Explicit Pane assigned in options)
+        L.marker(maltaCoords, { 
+            icon: maltaHubIcon, 
+            pane: 'markersPane', 
+            interactive: false 
+        }).addTo(map);
+
+        // 6. Map Background Click
+        map.on('click', function(e) {
+            allCountryMarkers.forEach(m => {
+                m.setStyle(inactiveStyle);
+                if (!map.hasLayer(m.associatedCurve)) m.associatedCurve.addTo(map); 
+                m.associatedCurve.setStyle({ opacity: 0.3, weight: 1.5 });
+            });
+        });
+
+        // 7. HELPER TOOL: Right-Click coordinates
+        map.on('contextmenu', function(e) { 
+            let clickedY = Math.round(e.latlng.lat);
+            let clickedX = Math.round(e.latlng.lng);
+            L.popup().setLatLng(e.latlng).setContent(`y: ${clickedY}, x: ${clickedX}`).openOn(map);
+            console.log(`y: ${clickedY}, x: ${clickedX}`);
+        });
+
     </script>
 </body>
 </html>

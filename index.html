@@ -60,24 +60,33 @@
         // 1. Map Initialization
         const map = L.map('map', {
             crs: L.CRS.Simple,
-            zoomSnap: 0, // CRITICAL FIX: Allows the map to scale smoothly inside any iframe
+            zoomSnap: 0, 
             zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false
         });
 
         const imageUrl = 'World_map.svg'; 
-        
-        // The actual dimensions of your image
         const imageBounds = [[0, 0], [1000, 1000]]; 
 
-        // NEW CAMERA BOUNDS: 
-        // We ensure X goes from 0 to 1000 (protecting the left and right edges)
-        // We trim Y to start at 150 (hiding Antarctica) and end at 850 (hiding the deep Arctic)
-        const iframeBounds = [[150, 0], [850, 1000]]; 
+        // NEW: Added "breathing room" to the X coordinates (-50 and 1050) 
+        // This physically forces empty space on the left and right sides so Australia cannot be clipped.
+        const iframeBounds = [[150, -50], [850, 1050]]; 
 
         L.imageOverlay(imageUrl, imageBounds).addTo(map);
-        
-        // Force Leaflet to always fit this exact box inside the iframe
-        map.fitBounds(iframeBounds);
+
+        // NEW: A dedicated function to handle iframe sizing
+        function frameMap() {
+            map.invalidateSize(); // Forces Leaflet to recalculate the iframe's exact dimensions
+            map.fitBounds(iframeBounds, { padding: [0, 0] }); // Forces the zoom with zero extra Leaflet padding
+        }
+
+        // 1. Run it immediately
+        frameMap();
+
+        // 2. Run it again a split-second later (Catch-all for slow iframe loading)
+        setTimeout(frameMap, 150);
+
+        // 3. Keep it perfect if the user resizes their browser window or rotates their phone
+        window.addEventListener('resize', frameMap);
 
         // ==========================================
         // NEW: Map Layering setup (Putting lines behind dots)

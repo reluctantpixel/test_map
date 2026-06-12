@@ -56,7 +56,11 @@
             line-height: 1;
             cursor: pointer;
             box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
+        
 
         .zoom-btn:disabled {
             opacity: 0.45;
@@ -140,6 +144,8 @@
     <div id="zoom-controls" aria-label="Map zoom controls">
         <button id="zoom-in" class="zoom-btn" type="button" aria-label="Zoom in">+</button>
         <button id="zoom-out" class="zoom-btn" type="button" aria-label="Zoom out">−</button>
+        <button id="fullscreen-toggle" class="zoom-btn" type="button" aria-label="Toggle Fullscreen">⛶</button>
+    </div>
     </div>
     <div id="info-popup"></div>
     <div id="coord-helper"></div>
@@ -280,6 +286,9 @@
                 const mapHeight = svgViewBox && svgViewBox.height ? svgViewBox.height : 491;
                 const zoomInBtn = document.getElementById('zoom-in');
                 const zoomOutBtn = document.getElementById('zoom-out');
+                const fullscreenBtn = document.getElementById('fullscreen-toggle');
+
+                
                 const MIN_ZOOM = 1;
                 const MAX_ZOOM = 1.8;
                 let zoomLevel = 1;
@@ -352,6 +361,26 @@
                     const direction = e.deltaY < 0 ? 0.1 : -0.1;
                     applyZoom(zoomLevel + direction);
                 }, { passive: false });
+                // --- Fullscreen Toggle Logic ---
+                fullscreenBtn.addEventListener('click', () => {
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen().catch(err => {
+                            console.warn(`Error attempting to enable fullscreen: ${err.message}`);
+                        });
+                    } else {
+                        document.exitFullscreen();
+                    }
+                });
+
+                document.addEventListener('fullscreenchange', () => {
+                    if (document.fullscreenElement) {
+                        fullscreenBtn.textContent = '✖'; 
+                        fullscreenBtn.setAttribute('aria-label', 'Exit Fullscreen');
+                    } else {
+                        fullscreenBtn.textContent = '⛶';
+                        fullscreenBtn.setAttribute('aria-label', 'Enter Fullscreen');
+                    }
+                });
 
                 // Use the actual World_map.svg canvas as the source of truth for size and resolution.
                 svg.setAttribute('viewBox', `0 0 ${mapWidth} ${mapHeight}`);

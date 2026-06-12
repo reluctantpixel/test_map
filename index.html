@@ -259,8 +259,19 @@
                     circle.setAttribute('cx', item.x);
                     circle.setAttribute('cy', item.y);
                     circle.setAttribute('r', '8');
+                    circle.setAttribute('r', '4');
                     circle.setAttribute('class', 'marker-dot');
+                    circle.setAttribute('data-base-r', '4');
                     svg.appendChild(circle);
+
+                    circle.addEventListener('mouseenter', () => {
+                        circle.setAttribute('r', '8');
+                    });
+
+                    circle.addEventListener('mouseleave', () => {
+                        const isActive = circle.classList.contains('active');
+                        circle.setAttribute('r', isActive ? '6' : '4');
+                    });
 
                     circle.addEventListener('click', (e) => {
                         if (e.button !== 0) return; 
@@ -272,11 +283,14 @@
                             activeElements.circle.classList.remove('active');
                             activeElements.path.classList.remove('active');
                             activeElements.circle.setAttribute('r', '8');
+                            activeElements.circle.setAttribute('r', '4');
+
                         }
 
                         circle.classList.add('active');
                         path.classList.add('active');
                         circle.setAttribute('r', '10');
+                        circle.setAttribute('r', '6');
                         activeElements = { circle, path };
 
                         let popupHTML = `<div class="popup-title">${item.country}</div><ul class="researcher-list">`;

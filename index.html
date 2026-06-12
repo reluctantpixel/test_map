@@ -98,6 +98,10 @@
 <body>
 
     <div id="map-container"></div>
+        <div id="zoom-controls" aria-label="Map zoom controls">
+        <button id="zoom-in" class="zoom-btn" type="button" aria-label="Zoom in">+</button>
+        <button id="zoom-out" class="zoom-btn" type="button" aria-label="Zoom out">−</button>
+        </div>
     <div id="info-popup"></div>
     <div id="coord-helper"></div>
 
@@ -217,6 +221,76 @@
                 const svgViewBox = svg.viewBox.baseVal;
                 const mapWidth = svgViewBox && svgViewBox.width ? svgViewBox.width : 873;
                 const mapHeight = svgViewBox && svgViewBox.height ? svgViewBox.height : 491;
+
+                                const zoomInBtn = document.getElementById('zoom-in');
+                const zoomOutBtn = document.getElementById('zoom-out');
+                const MIN_ZOOM = 1;
+                const MAX_ZOOM = 1.8;
+                let zoomLevel = 1;
+                let panX = 0;
+                let panY = 0;
+                let dragging = false;
+                let dragStartX = 0;
+                let dragStartY = 0;
+                let dragStartPanX = 0;
+                let dragStartPanY = 0;
+
+                const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+                const updateTransform = () => {
+                    const maxPanX = (zoomLevel - 1) * (container.clientWidth / 2);
+                    const maxPanY = (zoomLevel - 1) * (container.clientHeight / 2);
+                    panX = clamp(panX, -maxPanX, maxPanX);
+                    panY = clamp(panY, -maxPanY, maxPanY);
+                    svg.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
+                };
+
+                const applyZoom = (nextZoom) => {
+                    zoomLevel = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, nextZoom));
+                    updateTransform();
+                    zoomOutBtn.disabled = zoomLevel <= MIN_ZOOM;
+                    zoomInBtn.disabled = zoomLevel >= MAX_ZOOM;
+                };
+
+                const onPointerDown = (e) => {
+                    if (e.button !== undefined && e.button !== 0) return;
+                    dragging = true;
+                    dragStartX = e.clientX;
+                    dragStartY = e.clientY;
+                    dragStartPanX = panX;
+                    dragStartPanY = panY;
+                    svg.setPointerCapture && svg.setPointerCapture(e.pointerId);
+                    svg.style.cursor = 'grabbing';
+                };
+
+                const onPointerMove = (e) => {
+                    if (!dragging) return;
+                    panX = dragStartPanX + (e.clientX - dragStartX);
+                    panY = dragStartPanY + (e.clientY - dragStartY);
+                    updateTransform();
+                };
+
+                const onPointerUp = () => {
+                    if (!dragging) return;
+                    dragging = false;
+                    svg.style.cursor = 'grab';
+                };
+
+                applyZoom(1);
+
+                zoomInBtn.addEventListener('click', () => applyZoom(zoomLevel + 0.2));
+                zoomOutBtn.addEventListener('click', () => applyZoom(zoomLevel - 0.2));
+
+                svg.addEventListener('pointerdown', onPointerDown);
+                svg.addEventListener('pointermove', onPointerMove);
+                svg.addEventListener('pointerup', onPointerUp);
+                svg.addEventListener('pointercancel', onPointerUp);
+
+                svg.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    const direction = e.deltaY < 0 ? 0.1 : -0.1;
+                    applyZoom(zoomLevel + direction);
+                }, { passive: false });
 
                 svg.setAttribute('viewBox', `0 0 ${mapWidth} ${mapHeight}`);
                 svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');

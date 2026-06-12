@@ -14,20 +14,56 @@
             position: relative;
         }
 
+        /* 16:9 Widescreen Container Setup */
         #map-container {
             width: 100%;
             height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
+            overflow: hidden;
+            position: relative;
         }
 
         #map-container svg {
             width: 100%;
             height: 100%;
-            object-fit: fill; 
+            object-fit: fill;
+            transform-origin: center center;
+            transition: transform 0.15s ease;
+            touch-action: none;
+            cursor: grab;
         }
 
+        #zoom-controls {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            z-index: 1100;
+        }
+
+        .zoom-btn {
+            width: 36px;
+            height: 36px;
+            border: 1px solid #c7c7c7;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.95);
+            color: #333;
+            font-size: 18px;
+            line-height: 1;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        .zoom-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        /* Vector Line & Node Layout Styles */
         .connection-line {
             fill: none;
             stroke: #BA0C2F;
@@ -55,6 +91,7 @@
             opacity: 1;
         }
 
+        /* Context Information Window */
         #info-popup {
             position: absolute;
             display: none;
@@ -63,15 +100,12 @@
             border-radius: 5px;
             border: 1px solid #ccc;
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            pointer-events: none;
+            pointer-events: none; 
             z-index: 1000;
             max-width: 250px;
-            max-height: 60vh;
-            overflow-y: auto;
-            overflow-x: hidden;
-            box-sizing: border-box;
         }
         
+        /* Coordinate Floating Label Style */
         #coord-helper {
             position: absolute;
             display: none;
@@ -98,17 +132,19 @@
 <body>
 
     <div id="map-container"></div>
-        <div id="zoom-controls" aria-label="Map zoom controls">
+    <div id="zoom-controls" aria-label="Map zoom controls">
         <button id="zoom-in" class="zoom-btn" type="button" aria-label="Zoom in">+</button>
         <button id="zoom-out" class="zoom-btn" type="button" aria-label="Zoom out">−</button>
-        </div>
+    </div>
     <div id="info-popup"></div>
     <div id="coord-helper"></div>
 
     <script>
+        // Malta anchor coordinates are now based on the actual World_map.svg coordinate system.
         const maltaCoords = { x: 432, y: 191 };
 
-        const data = [
+        // Placeholder positions adjusted for the SVG map layout.
+         const data = [
             {
                 country: "Iceland",
                 x: 354, y: 82, 
@@ -221,8 +257,7 @@
                 const svgViewBox = svg.viewBox.baseVal;
                 const mapWidth = svgViewBox && svgViewBox.width ? svgViewBox.width : 873;
                 const mapHeight = svgViewBox && svgViewBox.height ? svgViewBox.height : 491;
-
-                                const zoomInBtn = document.getElementById('zoom-in');
+                const zoomInBtn = document.getElementById('zoom-in');
                 const zoomOutBtn = document.getElementById('zoom-out');
                 const MIN_ZOOM = 1;
                 const MAX_ZOOM = 1.8;
@@ -253,7 +288,12 @@
                 };
 
                 const onPointerDown = (e) => {
+                    const target = e.target;
+                    const isMarkerDot = target && target instanceof SVGElement && target.classList && target.classList.contains('marker-dot');
+
                     if (e.button !== undefined && e.button !== 0) return;
+                    if (isMarkerDot) return;
+
                     dragging = true;
                     dragStartX = e.clientX;
                     dragStartY = e.clientY;
@@ -292,6 +332,7 @@
                     applyZoom(zoomLevel + direction);
                 }, { passive: false });
 
+                // Use the actual World_map.svg canvas as the source of truth for size and resolution.
                 svg.setAttribute('viewBox', `0 0 ${mapWidth} ${mapHeight}`);
                 svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
                 svg.setAttribute('width', String(mapWidth));
@@ -318,21 +359,23 @@
                     return point.matrixTransform(svg.getScreenCTM());
                 };
 
+                // Loop through data and build vector objects natively
                 mapData.forEach(item => {
                     const deltaX = maltaMapCoords.x - item.x;
                     const deltaY = maltaMapCoords.y - item.y;
                     const cpX = item.x + (deltaX / 2) + (Math.abs(deltaY) * 0.1);
                     const cpY = item.y + (deltaY / 2) + (Math.abs(deltaX) * 0.35);
 
+                    // Curves
                     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                     path.setAttribute('d', `M ${item.x} ${item.y} Q ${cpX} ${cpY} ${maltaMapCoords.x} ${maltaMapCoords.y}`);
                     path.setAttribute('class', 'connection-line');
                     svg.appendChild(path);
 
+                    // Dots
                     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
                     circle.setAttribute('cx', item.x);
                     circle.setAttribute('cy', item.y);
-                    circle.setAttribute('r', '8');
                     circle.setAttribute('r', '4');
                     circle.setAttribute('class', 'marker-dot');
                     circle.setAttribute('data-base-r', '4');
@@ -348,22 +391,19 @@
                     });
 
                     circle.addEventListener('click', (e) => {
-                        if (e.button !== 0) return; 
+                        if (e.button !== 0) return; // ignore right-click / auxiliary clicks
 
                         e.stopPropagation();
-                        coordHelper.style.display = 'none'; 
+                        coordHelper.style.display = 'none'; // Hide coordinate tool on regular tap
 
                         if (activeElements) {
                             activeElements.circle.classList.remove('active');
                             activeElements.path.classList.remove('active');
-                            activeElements.circle.setAttribute('r', '8');
                             activeElements.circle.setAttribute('r', '4');
-
                         }
 
                         circle.classList.add('active');
                         path.classList.add('active');
-                        circle.setAttribute('r', '10');
                         circle.setAttribute('r', '6');
                         activeElements = { circle, path };
 
@@ -380,6 +420,7 @@
                     });
                 });
 
+                // Re-add the Malta hub icon as an SVG image overlay.
                 const maltaHubIcon = document.createElementNS('http://www.w3.org/2000/svg', 'image');
                 maltaHubIcon.setAttribute('href', 'um_square.jpg');
                 maltaHubIcon.setAttribute('x', String(maltaMapCoords.x - 10));
@@ -390,6 +431,7 @@
                 maltaHubIcon.style.pointerEvents = 'none';
                 svg.appendChild(maltaHubIcon);
 
+                // Draw central Malta anchor node on top of the image.
                 const maltaCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
                 maltaCircle.setAttribute('cx', maltaMapCoords.x);
                 maltaCircle.setAttribute('cy', maltaMapCoords.y);
@@ -399,6 +441,7 @@
                 maltaCircle.setAttribute('stroke-width', '3');
                 svg.appendChild(maltaCircle);
 
+                // HELPER TOOL: Native SVG Coordinate Calculator on Right Click
                 svg.addEventListener('contextmenu', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -410,19 +453,21 @@
                     const gridY = Math.round(nativeSvgSpace.y);
                     const tooltipScreen = screenPointFromSvg(gridX, gridY);
 
+                    // Render coordinate tooltip at the same SVG point the numbers refer to.
                     coordHelper.innerHTML = `x: ${gridX}, y: ${gridY}`;
                     coordHelper.style.display = 'block';
                     coordHelper.style.left = (tooltipScreen.x + 12) + 'px';
                     coordHelper.style.top = (tooltipScreen.y - 12) + 'px';
                 });
 
+                // Map Reset Action Mapping
                 svg.addEventListener('click', (e) => {
-                    if (e.button === 2) return; 
+                    if (e.button === 2) return; // keep the coordinate helper visible on right-click
 
                     if (activeElements) {
                         activeElements.circle.classList.remove('active');
                         activeElements.path.classList.remove('active');
-                        activeElements.circle.setAttribute('r', '8');
+                        activeElements.circle.setAttribute('r', Number(activeElements.circle.getAttribute('data-base-r') || 4));
                         activeElements = null;
                     }
                     popup.style.display = 'none';

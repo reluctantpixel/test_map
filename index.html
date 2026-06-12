@@ -4,241 +4,273 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visiting Researchers to Malta: Global Connections</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        html, body { 
-            margin: 0; padding: 0; 
-            width: 100%; height: 100%; 
+        html, body {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
-            overflow: hidden; 
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 16:9 Widescreen Container Setup */
+        #map-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #map-container svg {
+            width: 100%;
+            height: 100%;
+            object-fit: fill; /* Matches your explicit 16:9 layout boundaries */
+        }
+
+        /* Vector Line & Node Layout Styles */
+        .connection-line {
+            fill: none;
+            stroke: #BA0C2F;
+            stroke-width: 1.5;
+            opacity: 0.8;
+            transition: all 0.3s ease;
+        }
+        .connection-line.active {
+            opacity: 0.9;
+            stroke-width: 2.5;
+        }
+
+        .marker-dot {
+            fill: #BA0C2F;
+            stroke: #fff;
+            stroke-width: 1.5;
+            opacity: 1;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .marker-dot.active {
+            fill: #fff;
+            stroke: #BA0C2F;
+            stroke-width: 2.5;
+            opacity: 1;
+        }
+
+        /* Context Information Window */
+        #info-popup {
+            position: absolute;
+            display: none;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            pointer-events: none;
+            z-index: 1000;
+            max-width: 250px;
+            max-height: 60vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            box-sizing: border-box;
         }
         
-        #map {
-            width: 100%; 
-            height: 100%; 
+        /* Coordinate Floating Label Style */
+        #coord-helper {
             position: absolute;
-            top: 0; 
-            left: 0;
+            display: none;
+            background: #333;
+            color: #fff;
+            padding: 5px 10px;
+            font-family: monospace;
+            font-size: 12px;
+            border-radius: 3px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            pointer-events: none;
+            z-index: 1010;
         }
+
         .popup-title {
             font-size: 16px; font-weight: bold; margin-bottom: 5px; color: #333;
-            border-bottom: 2px solid #BA0C2F; /* UPDATED: UM Red line */
+            border-bottom: 2px solid #BA0C2F; 
             padding-bottom: 3px;
         }
         .researcher-list { margin: 5px 0 0 0; padding-left: 20px; font-size: 13px; color: #555; list-style-type: disc;}
         .researcher-list li { margin-bottom: 4px; }
-
-        /* NEW STYLES: Custom DivIcon for the Malta hub to hold PNG */
-        .malta-icon-container {
-            border-radius: 50%;
-            background-color: #fff; 
-            border: 2px solid #BA0C2F; 
-            box-shadow: 0 0 5px rgba(0,0,0,0.4);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden; 
-        }
-        
-        .malta-icon-container img {
-            width: 100%; 
-            height: 100%;
-            object-fit: cover; 
-            transform: scale(1.3); /* Adjust this number if you need more/less zoom */
-        }
     </style>
 </head>
 <body>
 
-    <div id="map"></div>
+    <div id="map-container"></div>
+    <div id="info-popup"></div>
+    <div id="coord-helper"></div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@elfalem/leaflet-curve@0.9.2/dist/leaflet.curve.min.js"></script>
-    
     <script>
-        // 1. Map Initialization
-        const map = L.map('map', {
-            crs: L.CRS.Simple,
-            zoomSnap: 0,
-            // minZoom: -15, // <--- RIGHT HERE!
-            zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false
-        });
+        // Malta anchor coordinates are now based on the actual World_map.svg coordinate system.
+        const maltaCoords = { x: 432, y: 191 };
 
-        const imageUrl = 'World_map.svg'; 
-        const imageBounds = [[0, 0], [1000, 1000]]; 
-
-        // NEW: Added "breathing room" to the X coordinates (-50 and 1050) 
-        // This physically forces empty space on the left and right sides so Australia cannot be clipped.
-        const iframeBounds = [[150, -0], [850, 1000]]; 
-
-        L.imageOverlay(imageUrl, imageBounds).addTo(map);
-
-        // NEW: A dedicated function to handle iframe sizing
-        function frameMap() {
-            map.invalidateSize(); // Forces Leaflet to recalculate the iframe's exact dimensions
-            map.fitBounds(iframeBounds, { padding: [0, 0] }); // Forces the zoom with zero extra Leaflet padding
-        }
-
-        // 1. Run it immediately
-        frameMap();
-
-        // 2. Run it again a split-second later (Catch-all for slow iframe loading)
-        setTimeout(frameMap, 150);
-
-        // 3. Keep it perfect if the user resizes their browser window or rotates their phone
-        window.addEventListener('resize', frameMap);
-
-        // ==========================================
-        // NEW: Map Layering setup (Putting lines behind dots)
-        // ==========================================
-        // Create custom "panes" to control z-index explicitely
-        map.createPane('linesPane');
-        map.getPane('linesPane').style.zIndex = 400; // Lower z-index
-        
-        map.createPane('markersPane');
-        map.getPane('markersPane').style.zIndex = 450; // Higher z-index
-
-        // 2. Global Variables
-        const maltaCoords = [581, 516]; 
-        let allCountryMarkers = []; 
-
-        // UPDATED: Brand Styles using UM Red #BA0C2F
-        const inactiveStyle = { 
-            pane: 'markersPane', // Explicit pane assignment
-            radius: 8, 
-            fillColor: "#BA0C2F", // UPDATED: UM Red fill
-            color: "#fff",       // UPDATED: Clean white border
-            weight: 1, 
-            opacity: 1, 
-            fillOpacity: 0.8 
-        };
-        const activeStyle = { 
-            pane: 'markersPane', // Explicit pane assignment
-            radius: 10, 
-            fillColor: "#fff",    // Highlighting by swapping color
-            color: "#BA0C2F",    // UM Red border
-            weight: 2, 
-            opacity: 1, 
-            fillOpacity: 1 
-        };
-
-        // 3. YOUR DATA
+        // Placeholder positions adjusted for the SVG map layout.
         const data = [
             {
                 country: "United Kingdom",
-                y: 780, x: 460, 
+                x: 460, y: 120, 
                 researchers: ["Dr. Evelyn Brooks (History)", "Prof. Liam Smith (Marine Biology)"]
             },
             {
                 country: "Italy",
-                y: 607, x: 508, 
+                x: 427, y: 167, 
                 researchers: ["Dr. Giovanni Rossi (Archaeology)", "Elena Bianchi (Seismology)"]
             },
             {
                 country: "United States",
-                y: 710, x: 200, 
+                x: 200, y: 190, 
                 researchers: ["Prof. Sarah Jenkins (Digital Humanities)"]
             }
         ];
 
-        // 4. Function: Draw the Curve
-        function drawConnectionArc(origin, destination) {
-            const start = origin; 
-            const end = destination; 
+        fetch('World_map.svg')
+            .then(response => response.text())
+            .then(svgText => {
+                const container = document.getElementById('map-container');
+                container.innerHTML = svgText;
+                
+                const svg = container.querySelector('svg');
+                const svgViewBox = svg.viewBox.baseVal;
+                const mapWidth = svgViewBox && svgViewBox.width ? svgViewBox.width : 873;
+                const mapHeight = svgViewBox && svgViewBox.height ? svgViewBox.height : 491;
 
-            const deltaY = end[0] - start[0];
-            const deltaX = end[1] - start[1];
-            
-            const cpY = start[0] + (deltaY / 2) + (Math.abs(deltaX) * 0.35); 
-            const cpX = start[1] + (deltaX / 2) + (Math.abs(deltaY) * 0.1);
-            
-            const controlPoint = [cpY, cpX]; 
+                // Use the actual World_map.svg canvas as the source of truth for size and resolution.
+                svg.setAttribute('viewBox', `0 0 ${mapWidth} ${mapHeight}`);
+                svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+                svg.setAttribute('width', String(mapWidth));
+                svg.setAttribute('height', String(mapHeight));
 
-            const pathCommand = ['M', start, 'Q', controlPoint, end];
+                const maltaMapCoords = { x: maltaCoords.x, y: maltaCoords.y };
+                const mapData = data.map(item => ({ ...item }));
 
-            return L.curve(pathCommand, {
-                pane: 'linesPane', // Explicit pane assignment
-                color: '#BA0C2F',  // UPDATED: UM Red lines
-                weight: 1.5,
-                opacity: 0.8,      // Softer default opacity
-                fill: false,
-                interactive: false  
-            });
-        }
+                const popup = document.getElementById('info-popup');
+                const coordHelper = document.getElementById('coord-helper');
+                let activeElements = null;
 
-        // 5. Build Markers, Draw Curves, and Add Interactivity
-        data.forEach(item => {
-            let popupContent = `<div class="popup-title">${item.country}</div>`;
-            popupContent += `<ul class="researcher-list">`;
-            item.researchers.forEach(researcher => { popupContent += `<li>${researcher}</li>`; });
-            popupContent += `</ul>`;
+                const svgPointFromClient = (clientX, clientY) => {
+                    const point = svg.createSVGPoint();
+                    point.x = clientX;
+                    point.y = clientY;
+                    return point.matrixTransform(svg.getScreenCTM().inverse());
+                };
 
-            const originCoords = [item.y, item.x];
+                const screenPointFromSvg = (svgX, svgY) => {
+                    const point = svg.createSVGPoint();
+                    point.x = svgX;
+                    point.y = svgY;
+                    return point.matrixTransform(svg.getScreenCTM());
+                };
 
-            const countryCurve = drawConnectionArc(originCoords, maltaCoords).addTo(map);
+                // Loop through data and build vector objects natively
+                mapData.forEach(item => {
+                    const deltaX = maltaMapCoords.x - item.x;
+                    const deltaY = maltaMapCoords.y - item.y;
+                    const cpX = item.x + (deltaX / 2) + (Math.abs(deltaY) * 0.1);
+                    const cpY = item.y + (deltaY / 2) + (Math.abs(deltaX) * 0.35);
 
-            // UPDATED: Dot Markers now receive explicit `pane: 'markersPane'` via style objects
-            const marker = L.circleMarker(originCoords, inactiveStyle)
-            .addTo(map)
-            .bindPopup(popupContent, { offset: [0, -10], closeButton: false }); 
+                    // Curves
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    path.setAttribute('d', `M ${item.x} ${item.y} Q ${cpX} ${cpY} ${maltaMapCoords.x} ${maltaMapCoords.y}`);
+                    path.setAttribute('class', 'connection-line');
+                    svg.appendChild(path);
 
-            marker.associatedCurve = countryCurve;
-            allCountryMarkers.push(marker);
+                    // Dots
+                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    circle.setAttribute('cx', item.x);
+                    circle.setAttribute('cy', item.y);
+                    circle.setAttribute('r', '8');
+                    circle.setAttribute('class', 'marker-dot');
+                    svg.appendChild(circle);
 
-            marker.on('click', function(e) {
-                L.DomEvent.stopPropagation(e); 
+                    circle.addEventListener('click', (e) => {
+                        if (e.button !== 0) return; // ignore right-click / auxiliary clicks
 
-                allCountryMarkers.forEach(m => {
-                    if (m === this) {
-                        m.setStyle(activeStyle);
-                        if (!map.hasLayer(m.associatedCurve)) m.associatedCurve.addTo(map);
-                        m.associatedCurve.setStyle({ opacity: 0.9, weight: 2.5 }); 
-                    } else {
-                        m.setStyle(inactiveStyle);
-                        if (map.hasLayer(m.associatedCurve)) map.removeLayer(m.associatedCurve); 
+                        e.stopPropagation();
+                        coordHelper.style.display = 'none'; // Hide coordinate tool on regular tap
+
+                        if (activeElements) {
+                            activeElements.circle.classList.remove('active');
+                            activeElements.path.classList.remove('active');
+                            activeElements.circle.setAttribute('r', '8');
+                        }
+
+                        circle.classList.add('active');
+                        path.classList.add('active');
+                        circle.setAttribute('r', '10');
+                        activeElements = { circle, path };
+
+                        let popupHTML = `<div class="popup-title">${item.country}</div><ul class="researcher-list">`;
+                        item.researchers.forEach(r => popupHTML += `<li>${r}</li>`);
+                        popupHTML += `</ul>`;
+                        
+                        popup.innerHTML = popupHTML;
+                        popup.style.display = 'block';
+
+                        const markerScreen = screenPointFromSvg(item.x, item.y);
+                        popup.style.left = (markerScreen.x + 15) + 'px';
+                        popup.style.top = (markerScreen.y - 20) + 'px';
+                    });
+                });
+
+                // Re-add the Malta hub icon as an SVG image overlay.
+                const maltaHubIcon = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+                maltaHubIcon.setAttribute('href', 'um_square.jpg');
+                maltaHubIcon.setAttribute('x', String(maltaMapCoords.x - 10));
+                maltaHubIcon.setAttribute('y', String(maltaMapCoords.y - 10));
+                maltaHubIcon.setAttribute('width', '20');
+                maltaHubIcon.setAttribute('height', '20');
+                maltaHubIcon.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+                maltaHubIcon.style.pointerEvents = 'none';
+                svg.appendChild(maltaHubIcon);
+
+                // Draw central Malta anchor node on top of the image.
+                const maltaCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                maltaCircle.setAttribute('cx', maltaMapCoords.x);
+                maltaCircle.setAttribute('cy', maltaMapCoords.y);
+                maltaCircle.setAttribute('r', '11');
+                maltaCircle.setAttribute('fill', 'transparent');
+                maltaCircle.setAttribute('stroke', '#BA0C2F');
+                maltaCircle.setAttribute('stroke-width', '3');
+                svg.appendChild(maltaCircle);
+
+                // HELPER TOOL: Native SVG Coordinate Calculator on Right Click
+                svg.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    popup.style.display = 'none';
+
+                    const nativeSvgSpace = svgPointFromClient(e.clientX, e.clientY);
+                    const gridX = Math.round(nativeSvgSpace.x);
+                    const gridY = Math.round(nativeSvgSpace.y);
+                    const tooltipScreen = screenPointFromSvg(gridX, gridY);
+
+                    // Render coordinate tooltip at the same SVG point the numbers refer to.
+                    coordHelper.innerHTML = `x: ${gridX}, y: ${gridY}`;
+                    coordHelper.style.display = 'block';
+                    coordHelper.style.left = (tooltipScreen.x + 12) + 'px';
+                    coordHelper.style.top = (tooltipScreen.y - 12) + 'px';
+                });
+
+                // Map Reset Action Mapping
+                svg.addEventListener('click', (e) => {
+                    if (e.button === 2) return; // keep the coordinate helper visible on right-click
+
+                    if (activeElements) {
+                        activeElements.circle.classList.remove('active');
+                        activeElements.path.classList.remove('active');
+                        activeElements.circle.setAttribute('r', '8');
+                        activeElements = null;
                     }
+                    popup.style.display = 'none';
+                    coordHelper.style.display = 'none';
                 });
             });
-        });
-
-        // ==========================================
-        // NEW: Special Icon Marker for Malta Hub
-        // ==========================================
-        // Define a custom HTML 'DivIcon' rather than a basic vector dot
-        const maltaHubIcon = L.divIcon({
-            html: '<div class="malta-icon-container">' +
-                  '' +
-                  '<img src="um_square.jpg">' +
-                  '</div>',
-            iconSize: [20, 20], // Base size should be approx inactive size [16, 16] or slightly larger [20,20]
-            className: '' // Clears Leaflet's default DivIcon styling
-        });
-
-        // Add Malta Hub Marker (Explicit Pane assigned in options)
-        L.marker(maltaCoords, { 
-            icon: maltaHubIcon, 
-            pane: 'markersPane', 
-            interactive: false 
-        }).addTo(map);
-
-        // 6. Map Background Click
-        map.on('click', function(e) {
-            allCountryMarkers.forEach(m => {
-                m.setStyle(inactiveStyle);
-                if (!map.hasLayer(m.associatedCurve)) m.associatedCurve.addTo(map); 
-                m.associatedCurve.setStyle({ opacity: 0.3, weight: 1.5 });
-            });
-        });
-
-        // 7. HELPER TOOL: Right-Click coordinates
-        map.on('contextmenu', function(e) { 
-            let clickedY = Math.round(e.latlng.lat);
-            let clickedX = Math.round(e.latlng.lng);
-            L.popup().setLatLng(e.latlng).setContent(`y: ${clickedY}, x: ${clickedX}`).openOn(map);
-            console.log(`y: ${clickedY}, x: ${clickedX}`);
-        });
-
     </script>
 </body>
 </html>

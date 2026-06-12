@@ -100,9 +100,14 @@
             border-radius: 5px;
             border: 1px solid #ccc;
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            pointer-events: none; 
+            pointer-events: auto;
             z-index: 1000;
-            max-width: 250px;
+            width: min(340px, 72vw);
+            max-width: 340px;
+            max-height: 50vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            box-sizing: border-box;
         }
         
         /* Coordinate Floating Label Style */
@@ -422,6 +427,25 @@
                         const markerScreen = screenPointFromSvg(item.x, item.y);
                         popup.style.left = (markerScreen.x + 15) + 'px';
                         popup.style.top = (markerScreen.y - 20) + 'px';
+                        const popupWidth = Math.min(340, Math.max(260, window.innerWidth * 0.72));
+                        const popupHeight = Math.min(window.innerHeight * 0.5, 340);
+
+                        let left = markerScreen.x + 16;
+                        let top = markerScreen.y - 16;
+
+                        if (left + popupWidth > window.innerWidth - 8 || top + popupHeight > window.innerHeight - 8) {
+                            left = Math.max(8, (window.innerWidth - popupWidth) / 2);
+                            top = Math.max(8, (window.innerHeight - popupHeight) / 2);
+                        } else {
+                            left = Math.min(left, window.innerWidth - popupWidth - 8);
+                            top = Math.min(top, window.innerHeight - popupHeight - 8);
+                        }
+
+                        popup.style.width = popupWidth + 'px';
+                        popup.style.maxHeight = popupHeight + 'px';
+                        popup.style.overflowY = 'auto';
+                        popup.style.left = Math.max(8, left) + 'px';
+                        popup.style.top = Math.max(8, top) + 'px';
                     });
                 });
 
